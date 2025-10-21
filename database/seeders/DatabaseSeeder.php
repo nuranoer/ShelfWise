@@ -1,45 +1,64 @@
 <?php
-
-// database/seeders/DatabaseSeeder.php
-namespace Database\Seeders;
 use Illuminate\Database\Seeder;
-use App\Models\{Author,Category,Book,Rating};
+use Illuminate\Support\Facades\DB;
+use App\Models\{Author, Category, Book, Rating};
 
-class DatabaseSeeder extends Seeder {
-    public function run(): void {
-        $authors = collect(['voluptatem','adipiscing','accusantium','reprehenderit','consequuntur','voluptas'])
-            ->map(fn($n) => Author::create(['name'=>$n]));
 
-        $cat = collect(['adipiscing','voluptatem','exercitationem','accusantium'])
-            ->map(fn($n)=> Category::create(['name'=>$n]));
+class DatabaseSeeder extends Seeder
+{
+public function run(): void
+{
+// Disable event dispatching during mass inserts for speed
+Author::unsetEventDispatcher();
+Category::unsetEventDispatcher();
+Book::unsetEventDispatcher();
+Rating::unsetEventDispatcher();
 
-        // sample books
-        $make = fn($name,$a,$c)=> Book::create(['name'=>$name,'author_id'=>$a->id,'category_id'=>$c->id]);
-        $b1 = $make('lorem ipsum',      $authors[0], $cat[0]);
-        $b2 = $make('dolor sit amet',   $authors[1], $cat[1]);
-        $b3 = $make('voluptatem',       $authors[0], $cat[2]);
-        $b4 = $make('consequuntur',     $authors[1], $cat[2]);
-        $b5 = $make('reprehenderit',    $authors[3], $cat[0]);
-        $b6 = $make('accusantium',      $authors[2], $cat[3]);
-        $b7 = $make('quia dolor',       $authors[4], $cat[1]);
-        $b8 = $make('magnam aliquam',   $authors[1], $cat[0]);
-        $b9 = $make('aspernatur minima',$authors[5], $cat[1]);
-        $b10= $make('quas molestias',   $authors[0], $cat[0]);
-        $b11= $make('ipsum',            $authors[0], $cat[0]);
 
-        // ratings awal
-        $seed = [
-            [$b1,9],[$b1,8],[$b1,9],
-            [$b2,8],[$b2,7],[$b2,6],
-            [$b3,6],[$b3,3],[$b3,5],
-            [$b4,4],[$b4,5],[$b4,4],
-            [$b5,3],[$b5,3],[$b5,3],
-            [$b6,9],[$b6,8],
-            [$b7,6],[$b7,6],[$b7,7],
-            [$b8,7],[$b8,6],
-            [$b9,9],
-            [$b10,8],[$b10,8],[$b10,9],
-        ];
-        foreach($seed as [$book,$score]) { Rating::create(['book_id'=>$book->id,'rating'=>$score]); }
-    }
+// 1) Authors (1,000)
+$this->command->info('Seeding authors...');
+Author::factory()->count(1000)->create();
+
+
+// 2) Categories (3,000)
+$this->command->info('Seeding categories...');
+Category::factory()->count(3000)->create();
+
+
+// 3) Books (100,000) in chunks to keep memory in check
+$this->command->info('Seeding books...');
+$bookTarget = 100000; $chunk = 5000; $made = 0;
+while ($made < $bookTarget) {
+$size = min($chunk, $bookTarget - $made);
+Book::factory()->count($size)->create();
+$made += $size;
+$this->command->getOutput()->writeln(" > books: {$made}/{$bookTarget}");
+}
+
+
+// Pre-fetch existing book IDs to speed up random selection
+$bookIds = Book::query()->pluck('id')->all();
+$bookCount = count($bookIds);
+
+
+// 4) Ratings (500,000) — use raw insert batches for speed
+$this->command->info('Seeding ratings...');
+$ratingTarget = 500000; $batch = 20000; $made = 0;
+$now = now();
+while ($made < $ratingTarget) {
+$size = min($batch, $ratingTarget - $made);
+$rows = [];
+for ($i = 0; $i < $size; $i++) {
+$rows[] = [
+'book_id' => $bookIds[random_int(0, $bookCount-1)],
+'rating' => random_int(1,10),
+'created_at' => $now,
+'updated_at' => $now,
+];
+}
+DB::table('ratings')->insert($rows);
+$made += $size;
+$this->command->getOutput()->writeln(" > ratings: {$made}/{$ratingTarget}");
+}
+}
 }

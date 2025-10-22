@@ -5,7 +5,6 @@ use App\Models\Author;
 use App\Models\Category;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-
 class BookFactory extends Factory
 {
 protected $model = Book::class;

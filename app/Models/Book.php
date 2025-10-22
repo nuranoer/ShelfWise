@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Book extends Model {
+    use HasFactory;
+
     protected $fillable = ['name','author_id','category_id'];
     public function author(): BelongsTo { return $this->belongsTo(Author::class); }
     public function category(): BelongsTo { return $this->belongsTo(Category::class); }

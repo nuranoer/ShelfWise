@@ -43,22 +43,34 @@ $bookCount = count($bookIds);
 
 // 4) Ratings (500,000) — use raw insert batches for speed
 $this->command->info('Seeding ratings...');
-$ratingTarget = 500000; $batch = 20000; $made = 0;
+
+$ratingTarget = 500_000;  // total target rating
+$batch = 2_000;           // ubah dari 20,000 → 2,000 per loop (aman)
+$made = 0;
 $now = now();
+
+DB::disableQueryLog(); // hemat memori
+
 while ($made < $ratingTarget) {
-$size = min($batch, $ratingTarget - $made);
-$rows = [];
-for ($i = 0; $i < $size; $i++) {
-$rows[] = [
-'book_id' => $bookIds[random_int(0, $bookCount-1)],
-'rating' => random_int(1,10),
-'created_at' => $now,
-'updated_at' => $now,
-];
-}
-DB::table('ratings')->insert($rows);
-$made += $size;
-$this->command->getOutput()->writeln(" > ratings: {$made}/{$ratingTarget}");
+    $size = min($batch, $ratingTarget - $made);
+    $rows = [];
+
+    for ($i = 0; $i < $size; $i++) {
+        $rows[] = [
+            'book_id'    => $bookIds[random_int(0, $bookCount - 1)],
+            'rating'     => random_int(1, 10),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+    }
+
+    // ✅ potong jadi chunk kecil (mis. 1000 per insert) biar MySQL nggak overload
+    foreach (array_chunk($rows, 1000) as $chunk) {
+        DB::table('ratings')->insert($chunk);
+    }
+
+    $made += $size;
+    $this->command->getOutput()->writeln(" > ratings: {$made}/{$ratingTarget}");
 }
 }
 }

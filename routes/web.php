@@ -11,21 +11,15 @@ Route::get('/authors/top', [AuthorController::class, 'index'])->name('authors.in
 Route::get('/ratings/create', [RatingController::class, 'create'])->name('ratings.create');
 Route::post('/ratings', [RatingController::class, 'store'])->name('ratings.store');
 
-Route::get('/api/books-by-author/{author}', [RatingController::class, 'booksByAuthor'])
-    ->name('api.books.byAuthor'); // JSON
-
 // ------------------------------
 // 🔹 API ROUTES (JSON endpoint untuk Postman)
 // ------------------------------
 
-// 📚 GET /api/books → list semua buku (JSON)
-Route::get('/books', [BookController::class, 'index'])->name('api.books.index');
-
-// 📚 GET /api/books-by-author/{author_id} → buku milik author tertentu
-Route::get('/books-by-author/{author}', [RatingController::class, 'booksByAuthor'])->name('api.books.byAuthor');
-
-// 👨‍💻 GET /api/authors/top → Top 10 author paling populer
-Route::get('/authors/top', [AuthorController::class, 'top'])->name('api.authors.top');
-
-// ⭐ POST /api/ratings → input rating baru
-Route::post('/ratings', [RatingController::class, 'store'])->name('api.ratings.store');
+Route::prefix('api')->group(function () {
+    Route::get('/books', [BookController::class, 'index']);
+    Route::get('/books-by-author/{author}', [RatingController::class, 'booksByAuthor']);
+    Route::get('/authors/top', [AuthorController::class, 'index']);
+    Route::get('/books-by-author/{author}', [RatingController::class, 'booksByAuthor'])
+        ->name('api.books.byAuthor');
+    Route::post('/ratings', [RatingController::class, 'store']);
+});

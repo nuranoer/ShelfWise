@@ -1,6 +1,5 @@
 <?php
 
-// app/Http/Controllers/RatingController.php
 namespace App\Http\Controllers;
 
 use App\Models\{Author, Book, Rating};
@@ -12,7 +11,6 @@ class RatingController extends Controller
     public function create()
     {
         $authors = Author::orderBy('name')->get(['id','name']);
-        // pilih author pertama untuk preload
         $firstAuthorId = optional($authors->first())->id;
         $books = $firstAuthorId
             ? Book::where('author_id',$firstAuthorId)->orderBy('name')->get(['id','name'])
@@ -23,23 +21,49 @@ class RatingController extends Controller
 
     public function store(Request $r)
     {
+        // validasi (akan otomatis return 422 JSON jika Accept: application/json)
         $data = $r->validate([
             'author_id' => ['required','exists:authors,id'],
             'book_id'   => [
                 'required',
-                Rule::exists('books','id')->where(fn($q)=>$q->where('author_id',$r->author_id)) // book harus milik author
+                Rule::exists('books','id')->where(
+                    fn($q) => $q->where('author_id', $r->author_id)
+                ),
             ],
             'rating'    => ['required','integer','between:1,10'],
         ]);
 
-        Rating::create(['book_id'=>$data['book_id'],'rating'=>$data['rating']]);
+        $rating = Rating::create([
+            'book_id' => $data['book_id'],
+            'rating'  => $data['rating'],
+        ]);
 
-        return redirect()->route('books.index')->with('ok','Rating saved!');
+        // ➜ Mode API / Postman → JSON
+        if ($r->expectsJson() || $r->wantsJson() || $r->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Rating submitted successfully',
+                'data'    => $rating,
+            ], 201);
+        }
+
+        // ➜ Mode Web → redirect
+        return redirect()->route('books.index')->with('ok', 'Rating saved!');
     }
 
-    // AJAX: buku berdasarkan author
-    public function booksByAuthor($authorId)
+    // Buku berdasarkan author (JSON-friendly)
+    public function booksByAuthor($authorId, Request $r)
     {
-        return Book::where('author_id',$authorId)->orderBy('name')->get(['id','name']);
+        $books = Book::where('author_id', $authorId)
+            ->orderBy('name')
+            ->get(['id','name']);
+
+        // selalu aman dikembalikan sebagai JSON untuk konsumsi AJAX/Postman
+        return response()->json([
+            'success'   => true,
+            'author_id' => (int) $authorId,
+            'total'     => $books->count(),
+            'data'      => $books,
+        ]);
     }
 }
